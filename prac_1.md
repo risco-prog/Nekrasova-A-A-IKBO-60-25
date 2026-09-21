@@ -22,7 +22,7 @@ cat protocols | cut -f 1,2 | awk '{print $2, $1}' | tail -n 5 | sort -r
 
 ## Решение: 
 ```
-#!bin/bash 
+#!/bin/bash 
 text="$1" 
 len=${#text} 
 count=$((len + 2)) 
