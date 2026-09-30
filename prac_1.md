@@ -65,3 +65,119 @@ file="$1"
 chmod +x "$file"
 sudo cp "$file" /usr/local/bin/ 
 ```
+# Задача 6
+Написать программу для проверки наличия комментария в первой строке файлов с расширением c, js и py.
+
+# Решение 
+```
+#!/bin/bash
+
+for file in "$1"/*.{c,js,py}
+do
+    if [ -f "$file" ]; then
+        first=$(head -n 1 "$file")
+
+        case "$file" in
+            *.py)
+                if [[ "$first" == \#* ]]; then
+                    echo "$file: comment found"
+                else
+                    echo "$file: comment not found"
+                fi
+                ;;
+            *.c|*.js)
+                if [[ "$first" == //* ]]; then
+                    echo "$file: comment found"
+                else
+                    echo "$file: comment not found"
+                fi
+                ;;
+        esac
+    fi
+done
+```
+
+# Задача 7
+Написать программу для нахождения файлов-дубликатов (имеющих 1 или более копий содержимого) по заданному пути (и подкаталогам).
+
+# Решение 
+```
+#!/bin/bash
+
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 <directory>"
+    exit 1
+fi
+
+find "$1" -type f -exec md5sum {} + | sort |
+while read -r hash file
+do
+    if [ "$hash" = "$previous_hash" ]; then
+        echo "Duplicate: $previous_file"
+        echo "Duplicate: $file"
+        echo
+    fi
+
+    previous_hash="$hash"
+    previous_file="$file"
+done
+```
+
+# Задача 8
+Написать программу, которая находит все файлы в данном каталоге с расширением, указанным в качестве аргумента и архивирует все эти файлы в архив tar.
+
+# Решение 
+```
+#!/bin/bash
+
+if [ $# -ne 2 ]; then
+    echo "Usage: $0 <directory> <extension>"
+    exit 1
+fi
+
+directory="$1"
+extension="$2"
+
+find "$directory" -type f -name "*.$extension" > files.txt
+
+tar -cf archive.tar -T files.txt
+
+rm files.txt
+
+echo "Archive created: archive.tar"
+```
+
+# Задача 9
+Написать программу, которая заменяет в файле последовательности из 4 пробелов на символ табуляции. Входной и выходной файлы задаются аргументами.
+
+# Решение 
+```
+#!/bin/bash
+
+if [ $# -ne 2 ]; then
+    echo "Usage: $0 <input_file> <output_file>"
+    exit 1
+fi
+
+input="$1"
+output="$2"
+
+sed 's/    /\t/g' "$input" > "$output"
+
+echo "File converted"
+```
+
+# Задача 10
+Написать программу, которая выводит названия всех пустых текстовых файлов в указанной директории. Директория передается в программу параметром.
+
+# Решение 
+```
+#!/bin/bash
+
+if [ $# -ne 1 ]; then
+    echo "Usage: $0 <directory>"
+    exit 1
+fi
+
+find "$1" -type f -empty -name "*.txt"
+```
