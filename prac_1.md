@@ -47,7 +47,7 @@ h hello include int main n printf return stdio void world
 file="$1" 
 tr -c 'A-Za-z0-9_' '\n' < "$file" |
 grep '^[A-Za-z_][A-Za-z0-9_]*$' |
-tr 'A-Z' 'a-z' | sort -u | tr '\n' ' '
+sort -u | tr '\n' ' '
 ```
 # Задача 5
 Написать программу для регистрации пользовательской команды (правильные права доступа и копирование в /usr/local/bin). 
