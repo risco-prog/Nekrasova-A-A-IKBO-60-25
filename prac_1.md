@@ -104,11 +104,6 @@ done
 ```
 #!/bin/bash
 
-if [ $# -ne 1 ]; then
-    echo "Usage: $0 <directory>"
-    exit 1
-fi
-
 find "$1" -type f -exec md5sum {} + | sort |
 while read -r hash file
 do
@@ -130,11 +125,6 @@ done
 ```
 #!/bin/bash
 
-if [ $# -ne 2 ]; then
-    echo "Usage: $0 <directory> <extension>"
-    exit 1
-fi
-
 directory="$1"
 extension="$2"
 
@@ -154,11 +144,6 @@ echo "Archive created: archive.tar"
 ```
 #!/bin/bash
 
-if [ $# -ne 2 ]; then
-    echo "Usage: $0 <input_file> <output_file>"
-    exit 1
-fi
-
 input="$1"
 output="$2"
 
@@ -173,11 +158,6 @@ echo "File converted"
 # Решение 
 ```
 #!/bin/bash
-
-if [ $# -ne 1 ]; then
-    echo "Usage: $0 <directory>"
-    exit 1
-fi
 
 find "$1" -type f -empty -name "*.txt"
 ```
