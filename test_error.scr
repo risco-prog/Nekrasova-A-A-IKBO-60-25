@@ -1,0 +1,5 @@
+# Скрипт проверки ошибок
+ls
+bad_command
+cd /tmp
+exit

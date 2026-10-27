@@ -1,27 +1,28 @@
-# Команды этапа 1 — пока заглушки.
+'''Команды этапа 2 — пока заглушки.'''
 
 
-def cmd_ls(args):
-    # Заглушка ls: печатает имя и аргументы.
+def cmd_ls(state, args):
+    '''Заглушка ls: печатает имя и аргументы.'''
     print(f"ls: called with args: {args}")
-    return True
+    return 0
 
 
-def cmd_cd(args):
-    # Заглушка cd: печатает имя и аргументы.
+def cmd_cd(state, args):
+    '''Заглушка cd: печатает имя и аргументы.'''
     print(f"cd: called with args: {args}")
-    return True
+    return 0
 
 
-def cmd_exit(args):
-    # Выход: С аргументами - ошибка
+def cmd_exit(state, args):
+    '''Выход: С аргументами - ошибка'''
     if args:
         raise ValueError("exit takes no arguments")
-    return False
+    state["running"] = False
+    return 0
 
 
 COMMANDS = {
-    "ls" : cmd_ls,
-    "cd" : cmd_cd,
-    "exit" : cmd_exit
+    "ls": cmd_ls,
+    "cd": cmd_cd,
+    "exit": cmd_exit
 }
