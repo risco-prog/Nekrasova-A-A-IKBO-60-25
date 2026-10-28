@@ -1,16 +1,16 @@
-'''Эмулятор shell. Этап 1: REPL.'''
+"""Эмулятор shell. Этап 1: REPL."""
 
 
-import os
 import sys
 
 from commands import COMMANDS
 from config import parse_args
 from parser import parse
+from vfs import VFSError, VFS
 
 
 def execute_line(state, line):
-    '''Выполнить одну строку. Возвращает код ошибки (0 - успех).'''
+    """Выполнить одну строку. Возвращает код ошибки (0 - успех)."""
     line = line.strip()
     if not line:
         return 0
@@ -38,7 +38,7 @@ def execute_line(state, line):
 
 
 def run_script(state, script_path):
-    '''Выполняет стартовый скрипт. Останавливается при первой ошибке.'''
+    """Выполняет стартовый скрипт. Останавливается при первой ошибке."""
     try:
         with open(script_path, "r", encoding="utf-8") as file:
             lines = file.readlines()
@@ -61,7 +61,7 @@ def run_script(state, script_path):
 
 
 def repl(state):
-    '''Основной цикл'''
+    """Основной цикл"""
     while state["running"]:
         try:
             line = input(state["prompt"])
@@ -72,18 +72,25 @@ def repl(state):
 
 
 def main():
-    '''Точка входа'''
+    """Точка входа"""
     args = parse_args()
 
     print("Отладка: параметры запуска")
     print(f"Путь к VFS: {args.vfs}")
     print(f"Путь к скрипту: {args.script}")
 
-    vfs_name = os.path.basename(args.vfs).replace(".json", "")
+    # Загружаем VFS
+    try:
+        vfs = VFS.load(args.vfs)
+    except VFSError as exc:
+        print(f"Ошибка загрузки VFS: {exc}", file=sys.stderr)
+        return
 
+    # Теперь имя берем из самого JSON файла (поле "name")
     state = {
         "running": True,
-        "promt": f"[{vfs_name}]$ "
+        "prompt": f"[{vfs.name}]$ ",
+        "vfs": vfs
     }
 
     if args.script:

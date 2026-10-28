@@ -1,0 +1,26 @@
+{
+  "name": "basic",
+  "root": {
+    "type": "dir",
+    "children": {
+      "readme.txt": {
+        "type": "file",
+        "content": "Привет, это виртуальная файловая система!\n"
+      },
+      "data.bin": {
+        "type": "file",
+        "encoding": "base64",
+        "content": "SGVsbG8sIGJpbmFyeSE="
+      },
+      "docs": {
+        "type": "dir",
+        "children": {
+          "guide.md": {
+            "type": "file",
+            "content": "# Руководство\n"
+          }
+        }
+      }
+    }
+  }
+}
