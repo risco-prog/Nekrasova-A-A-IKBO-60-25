@@ -1,5 +1,0 @@
-# Тест глубокого VFS
-cd level1
-cd level2
-ls
-exit
