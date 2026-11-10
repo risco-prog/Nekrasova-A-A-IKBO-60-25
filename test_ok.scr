@@ -1,5 +1,0 @@
-# Это комментарий, он будет пропущен
-ls
-cd /tmp
-ls "args with space"
-exit

@@ -1,5 +1,0 @@
-# Тест базового VFS
-ls readme.txt
-cd docs
-ls
-exit
