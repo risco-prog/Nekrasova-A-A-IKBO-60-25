@@ -2,6 +2,9 @@ import argparse
 import sys
 import os
 from urllib.parse import urlparse
+import urllib.request
+import urllib.error
+import json
 
 # Блок 1: функции валидации параметров
 
@@ -34,7 +37,36 @@ def validate_depth(value: str) -> int:
 
     return depth
 
-# Блок 2: настройка argparse
+# Блок 2: функции для работы с данными
+def fetch_package_data(repo_url: str, package_name: str) -> dict:
+    url = f"{repo_url.rstrip('/')}/{package_name}"
+
+    try:
+        with urllib.request.urlopen(url) as response:
+            data = response.read().decode('utf-8')
+            return json.loads(data)
+    except urllib.error.HTTPError as e:
+        print(f"Ошибка HTTP: {e.code}", file=sys.stderr)
+        sys.exit(1)
+    except urllib.error.URLError as e:
+        print(f"Ошибка сети: {e.reason}", file=sys.stderr)
+        sys.exit(1)
+
+def get_direct_dependencies(package_data: dict, version: str) -> dict:
+    if version == "latest":
+        version = package_data.get("dist-tags", {}).get("latest")
+        print(f"Выбрана последняя версия: {version}")
+
+    versions = package_data.get("versions", {})
+    if version not in versions:
+        print(f"Ошибка: версия {version} не найдена для пакета {package_data.get('name')}", file=sys.stderr)
+        sys.exit(1)
+
+    dependencies = versions[version].get("dependencies", {})
+    return dependencies, version
+
+
+# Блок 3: настройка argparse
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(
@@ -91,7 +123,7 @@ def parse_args(argv):
     return parser.parse_args(argv)
 
 
-# Блок 3: Главная функция программы
+# Блок 4: Главная функция программы
 
 def main(argv=None):
     if argv is None:
@@ -112,6 +144,16 @@ def main(argv=None):
         if not os.path.isfile(args.repo):
             print(f"Ошибка: для тестового режима требуется существующий файл, получено: {args.repo}", file=sys.stderr)
             return 1
+    if args.mode == "real":
+        package_data = fetch_package_data(args.repo, args.package)
+        deps, exact_version = get_direct_dependencies(package_data, args.version)
+
+        if not deps:
+            print(f"У пакета {args.package} (версия {exact_version}) нет прямых зависимостей.")
+        else:
+            print(f"Прямые зависимости пакета {args.package} (версия {exact_version}):")
+            for dep_name, dep_version in deps.items():
+                print(f"{dep_name} (требуется версия: {dep_version})")
     return 0
 
 
