@@ -125,6 +125,29 @@ def build_graph_bfs(package_name: str, repo_url: str, mode: str, max_depth: int,
     return graph
 
 
+def get_load_order(graph: dict, root_package: str) -> list:
+    order = []
+    visited = set()
+    visiting = set()
+
+    def visit(node):
+        if node in visited:
+            return
+        if node in visiting:
+            print(f"Предупреждение: обнаружен цикл с участием пакета {node}. Порядок может быть неточным.",
+                  file=sys.stderr)
+            return
+        visiting.add(node)
+
+        for dep in graph.get(node, []):
+            visit(dep)
+
+        visiting.remove(node)
+        visited.add(node)
+        order.append(node)
+    visit(root_package)
+    return order
+
 # Блок 3: настройка argparse
 
 def parse_args(argv):
@@ -179,6 +202,11 @@ def parse_args(argv):
         help="Подстрока для исключения пакетов из анализа"
     )
 
+    parser.add_argument(
+        "--order", "-o", action="store_true",
+        help="Вывести порядок загрузки зависимостей"
+    )
+
     return parser.parse_args(argv)
 
 
@@ -219,6 +247,12 @@ def main(argv=None):
             print(f"{node} -> {', '.join(dependencies)}")
         else:
             print(f"{node} (нет зависимостей)")
+    if args.order:
+        print("Порядок загрузки зависимостей")
+        load_order = get_load_order(graph, args.package)
+
+        for i, pkg in enumerate(load_order, 1):
+            print(f"{i}. {pkg}")
     return 0
 
 
