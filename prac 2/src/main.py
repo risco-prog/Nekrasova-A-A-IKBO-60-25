@@ -65,6 +65,65 @@ def get_direct_dependencies(package_data: dict, version: str) -> dict:
     dependencies = versions[version].get("dependencies", {})
     return dependencies, version
 
+def load_test_graph(file_path: str) -> dict:
+    graph = {}
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+
+                parts = line.split(':')
+                if len(parts) != 2:
+                    continue
+
+                node = parts[0].strip()
+                deps = parts[1].strip().split()
+                graph[node] = deps
+    except FileNotFoundError:
+        print(f"Ошибка: тестовый файл не найден: {file_path}", file=sys.stderr)
+        sys.exit(1)
+    return graph
+
+def build_graph_bfs(package_name: str, repo_url: str, mode: str, max_depth: int, filter_substring: str) -> dict:
+    graph = {}
+    queue = [(package_name, 0)]
+    visited = set()
+    test_graph = {}
+
+    if mode == "test":
+        test_graph = load_test_graph(repo_url)
+
+    while queue:
+        current_package, current_depth = queue.pop(0)
+
+        if current_package in visited:
+            continue
+
+        visited.add(current_package)
+
+        if filter_substring and filter_substring in current_package:
+            continue
+
+        dep_list = []
+        if mode == "test":
+            dep_list = test_graph.get(current_package, [])
+        else:
+            try:
+                package_data = fetch_package_data(repo_url, current_package)
+                deps, _ = get_direct_dependencies(package_data, "latest")
+                dep_list = list(deps.keys())
+            except Exception:
+                dep_list = []
+        graph[current_package] = dep_list
+
+        if current_depth < max_depth:
+            for dep in dep_list:
+                if dep not in visited:
+                    queue.append((dep, current_depth + 1))
+    return graph
+
 
 # Блок 3: настройка argparse
 
@@ -144,16 +203,22 @@ def main(argv=None):
         if not os.path.isfile(args.repo):
             print(f"Ошибка: для тестового режима требуется существующий файл, получено: {args.repo}", file=sys.stderr)
             return 1
-    if args.mode == "real":
-        package_data = fetch_package_data(args.repo, args.package)
-        deps, exact_version = get_direct_dependencies(package_data, args.version)
 
-        if not deps:
-            print(f"У пакета {args.package} (версия {exact_version}) нет прямых зависимостей.")
+    graph = build_graph_bfs(
+        package_name=args.package,
+        repo_url=args.repo,
+        mode=args.mode,
+        max_depth=args.depth,
+        filter_substring=args.filter
+    )
+    print(f"Граф успешно построен. Найдено уникальных пакетов: {len(graph)}")
+
+    print("\nСодержимое графа:")
+    for node, dependencies in graph.items():
+        if dependencies:
+            print(f"{node} -> {', '.join(dependencies)}")
         else:
-            print(f"Прямые зависимости пакета {args.package} (версия {exact_version}):")
-            for dep_name, dep_version in deps.items():
-                print(f"{dep_name} (требуется версия: {dep_version})")
+            print(f"{node} (нет зависимостей)")
     return 0
 
 
