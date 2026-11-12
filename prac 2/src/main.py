@@ -148,6 +148,46 @@ def get_load_order(graph: dict, root_package: str) -> list:
     visit(root_package)
     return order
 
+
+def generate_plantuml(graph: dict) -> str:
+    lines = ["@startmul", "skinparam defaultFontName Monospaced"]
+    for node, dependencies in graph.items():
+        if not dependencies:
+            lines.append(f'package "{node}"')
+        else:
+            for dep in dependencies:
+                lines.append(f'"{node}" --> "{dep}"')
+    lines.append("@endmul")
+    return "\n".join(lines)
+
+
+def print_ascii_tree(graph: dict, node: str, prefix: str = "", is_last: bool = True,
+                     visited: set = None, is_root: bool = True):
+    if visited is None:
+        visited = set()
+
+    if node in visited:
+        print(f"{prefix}{'`-- ' if is_last else '|-- '}{node} (цикл)")
+        return
+
+    visited.add(node)
+
+    if is_root:
+        print(node)
+    else:
+        connector = "`-- " if is_last else "|-- "
+        print(f"{prefix}{connector}{node}")
+
+    if is_root:
+        child_prefix = ""
+    else:
+        child_prefix = prefix + ("    " if is_last else "│   ")
+
+    dependencies = graph.get(node, [])
+    for i, dep in enumerate(dependencies):
+        is_last_child = (i == len(dependencies) - 1)
+        print_ascii_tree(graph, dep, child_prefix, is_last_child, visited, is_root=False)
+
 # Блок 3: настройка argparse
 
 def parse_args(argv):
@@ -253,6 +293,13 @@ def main(argv=None):
 
         for i, pkg in enumerate(load_order, 1):
             print(f"{i}. {pkg}")
+
+    print("\nВизуализация в формате PlantUML")
+    print(generate_plantuml(graph))
+
+    if args.ascii:
+        print("\nASCII-дерево зависимостей")
+        print_ascii_tree(graph, args.package, is_last=False)
     return 0
 
 
