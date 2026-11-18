@@ -6,7 +6,11 @@ import urllib.request
 import urllib.error
 import json
 
-# Блок 1: функции валидации параметров
+MIN_DEPTH = 1
+START_DEPTH = 0
+
+"""Блок 1: функции валидации параметров"""
+
 
 def validate_package_name(name: str) -> str:
     if not name:
@@ -20,24 +24,31 @@ def validate_package_name(name: str) -> str:
         )
     return name
 
+
 def validate_repo(value: str) -> str:
     parsed = urlparse(value)
     if parsed.scheme in ("http", "https"):
         return value
     return value
 
+
 def validate_depth(value: str) -> int:
     try:
         depth = int(value)
     except ValueError:
-        raise argparse.ArgumentTypeError(f"Глубина должна быть цулым числом, получено: {value}")
+        raise argparse.ArgumentTypeError(f"Глубина должна быть цулым числом, "
+                                         f"получено: {value}")
 
-    if depth < 1:
-        raise argparse.ArgumentTypeError(f"Глубина должна быть >= 1, получено: {depth}")
+    if depth < MIN_DEPTH:
+        raise argparse.ArgumentTypeError(f"Глубина должна быть >= 1, "
+                                         f"получено: {depth}")
 
     return depth
 
-# Блок 2: функции для работы с данными
+
+"""Блок 2: функции для работы с данными"""
+
+
 def fetch_package_data(repo_url: str, package_name: str) -> dict:
     url = f"{repo_url.rstrip('/')}/{package_name}"
 
@@ -52,6 +63,7 @@ def fetch_package_data(repo_url: str, package_name: str) -> dict:
         print(f"Ошибка сети: {e.reason}", file=sys.stderr)
         sys.exit(1)
 
+
 def get_direct_dependencies(package_data: dict, version: str) -> dict:
     if version == "latest":
         version = package_data.get("dist-tags", {}).get("latest")
@@ -59,11 +71,13 @@ def get_direct_dependencies(package_data: dict, version: str) -> dict:
 
     versions = package_data.get("versions", {})
     if version not in versions:
-        print(f"Ошибка: версия {version} не найдена для пакета {package_data.get('name')}", file=sys.stderr)
+        print(f"Ошибка: версия {version} не найдена для пакета "
+              f"{package_data.get('name')}", file=sys.stderr)
         sys.exit(1)
 
     dependencies = versions[version].get("dependencies", {})
     return dependencies, version
+
 
 def load_test_graph(file_path: str) -> dict:
     graph = {}
@@ -86,14 +100,27 @@ def load_test_graph(file_path: str) -> dict:
         sys.exit(1)
     return graph
 
-def build_graph_bfs(package_name: str, repo_url: str, mode: str, max_depth: int, filter_substring: str) -> dict:
-    graph = {}
-    queue = [(package_name, 0)]
-    visited = set()
-    test_graph = {}
 
+def get_package_dependencies(current_package, mode, test_graph, repo_url):
+    """Получает список зависимостей для одного пакета"""
     if mode == "test":
-        test_graph = load_test_graph(repo_url)
+        return test_graph.get(current_package, [])
+    else:
+        try:
+            package_data = fetch_package_data(repo_url, current_package)
+            deps, _ = get_direct_dependencies(package_data, "latest")
+            return list(deps.keys())
+        except Exception:
+            return []
+
+
+def build_graph_bfs(package_name: str, repo_url: str,
+                    mode: str, max_depth: int, filter_substring: str) -> dict:
+    graph = {}
+    queue = [(package_name, START_DEPTH)]
+    visited = set()
+
+    test_graph = load_test_graph(repo_url) if mode == "test" else {}
 
     while queue:
         current_package, current_depth = queue.pop(0)
@@ -106,16 +133,8 @@ def build_graph_bfs(package_name: str, repo_url: str, mode: str, max_depth: int,
         if filter_substring and filter_substring in current_package:
             continue
 
-        dep_list = []
-        if mode == "test":
-            dep_list = test_graph.get(current_package, [])
-        else:
-            try:
-                package_data = fetch_package_data(repo_url, current_package)
-                deps, _ = get_direct_dependencies(package_data, "latest")
-                dep_list = list(deps.keys())
-            except Exception:
-                dep_list = []
+        dep_list = get_package_dependencies(current_package, mode, test_graph,
+                                            repo_url)
         graph[current_package] = dep_list
 
         if current_depth < max_depth:
@@ -134,7 +153,8 @@ def get_load_order(graph: dict, root_package: str) -> list:
         if node in visited:
             return
         if node in visiting:
-            print(f"Предупреждение: обнаружен цикл с участием пакета {node}. Порядок может быть неточным.",
+            print(f"Предупреждение: обнаружен цикл с участием пакета {node}."
+                  f" Порядок может быть неточным.",
                   file=sys.stderr)
             return
         visiting.add(node)
@@ -145,23 +165,25 @@ def get_load_order(graph: dict, root_package: str) -> list:
         visiting.remove(node)
         visited.add(node)
         order.append(node)
+
     visit(root_package)
     return order
 
 
 def generate_plantuml(graph: dict) -> str:
-    lines = ["@startmul", "skinparam defaultFontName Monospaced"]
+    lines = ["@startuml", "skinparam defaultFontName Monospaced"]
     for node, dependencies in graph.items():
         if not dependencies:
             lines.append(f'package "{node}"')
         else:
             for dep in dependencies:
                 lines.append(f'"{node}" --> "{dep}"')
-    lines.append("@endmul")
+    lines.append("@enduml")
     return "\n".join(lines)
 
 
-def print_ascii_tree(graph: dict, node: str, prefix: str = "", is_last: bool = True,
+def print_ascii_tree(graph: dict, node: str,
+                     prefix: str = "", is_last: bool = True,
                      visited: set = None, is_root: bool = True):
     if visited is None:
         visited = set()
@@ -186,78 +208,56 @@ def print_ascii_tree(graph: dict, node: str, prefix: str = "", is_last: bool = T
     dependencies = graph.get(node, [])
     for i, dep in enumerate(dependencies):
         is_last_child = (i == len(dependencies) - 1)
-        print_ascii_tree(graph, dep, child_prefix, is_last_child, visited, is_root=False)
+        print_ascii_tree(graph, dep, child_prefix, is_last_child,
+                         visited, is_root=False)
 
-# Блок 3: настройка argparse
+
+"""Блок 3: настройка argparse"""
+
 
 def parse_args(argv):
     parser = argparse.ArgumentParser(
-    description="Визуализатор графа зависимостей для npm-пакетов.",
-    formatter_class=argparse.RawDescriptionHelpFormatter
-    )
+        description="Визуализатор графа зависимостей для npm-пакетов.",
+        formatter_class=argparse.RawDescriptionHelpFormatter)
 
-    parser.add_argument(
-        "--package", "-p",
-        required=True,
-        type=validate_package_name,
-        help="Имя анализируемого пакета"
-    )
+    parser.add_argument("--package", "-p", required=True,
+                        type=validate_package_name,
+                        help="Имя анализируемого пакета")
 
-    parser.add_argument(
-        "--repo", "-r",
-        required=True,
-        type=validate_repo,
-        help="URL реестра npm или путь к файлу тестового графа"
-    )
+    parser.add_argument("--repo", "-r", required=True, type=validate_repo,
+                        help="URL реестра npm или путь к файлу тестового графа")
 
-    parser.add_argument(
-        "--mode", "-m",
-        choices=["real", "test"],
-        default="real",
-        help="Режим работы: real (через интернет) или test (локальный файл)"
-    )
+    parser.add_argument("--mode", "-m", choices=["real", "test"],
+                        default="real",
+                        help="Режим работы: real (через интернет) "
+                             "или test (локальный файл)")
 
-    parser.add_argument(
-        "--version", "-v",
-        default="latest",
-        help="Версия пакета"
-    )
+    parser.add_argument("--version", "-v", default="latest",
+                        help="Версия пакета")
 
-    parser.add_argument(
-        "--ascii", "-a",
-        action="store_true",
-        help="Вывести зависимости в виде ASCII-дерева"
-    )
+    parser.add_argument("--ascii", "-a", action="store_true",
+                        help="Вывести зависимости в виде ASCII-дерева")
 
-    parser.add_argument(
-        "--depth", "-d",
-        type=validate_depth,
-        default=3,
-        help="Максимальная глубина анализа зависимостей (по умолчанию: 3)"
-    )
+    parser.add_argument("--depth", "-d", type=validate_depth,
+                        default=3, help="Максимальная глубина анализа "
+                                        "зависимостей (по умолчанию: 3)")
 
-    parser.add_argument(
-        "--filter", "-f",
-        default="",
-        help="Подстрока для исключения пакетов из анализа"
-    )
+    parser.add_argument("--filter", "-f", default="",
+                        help="Подстрока для исключения пакетов из анализа")
 
-    parser.add_argument(
-        "--order", "-o", action="store_true",
-        help="Вывести порядок загрузки зависимостей"
-    )
+    parser.add_argument("--order", "-o", action="store_true",
+                        help="Вывести порядок загрузки зависимостей")
 
     return parser.parse_args(argv)
 
 
-# Блок 4: Главная функция программы
+"""Блок 4: Главная функция программы"""
+
 
 def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]
-
     args = parse_args(argv)
-
     print("Текущая конфигурация")
     print(f"Пакет: {args.package}")
     print(f"Репозиторий: {args.repo}")
@@ -266,21 +266,17 @@ def main(argv=None):
     print(f"ASCII-дерево: {args.ascii}")
     print(f"Глубина: {args.depth}")
     print(f"Фильтр: {args.filter}")
-
     if args.mode == "test" and not args.repo.startswith("http"):
         if not os.path.isfile(args.repo):
-            print(f"Ошибка: для тестового режима требуется существующий файл, получено: {args.repo}", file=sys.stderr)
+            print(f"Ошибка: для тестового режима требуется существующий файл, "
+                  f"получено: {args.repo}", file=sys.stderr)
             return 1
-
     graph = build_graph_bfs(
-        package_name=args.package,
-        repo_url=args.repo,
-        mode=args.mode,
-        max_depth=args.depth,
+        package_name=args.package, repo_url=args.repo,
+        mode=args.mode, max_depth=args.depth,
         filter_substring=args.filter
     )
     print(f"Граф успешно построен. Найдено уникальных пакетов: {len(graph)}")
-
     print("\nСодержимое графа:")
     for node, dependencies in graph.items():
         if dependencies:
@@ -290,13 +286,10 @@ def main(argv=None):
     if args.order:
         print("Порядок загрузки зависимостей")
         load_order = get_load_order(graph, args.package)
-
         for i, pkg in enumerate(load_order, 1):
             print(f"{i}. {pkg}")
-
     print("\nВизуализация в формате PlantUML")
     print(generate_plantuml(graph))
-
     if args.ascii:
         print("\nASCII-дерево зависимостей")
         print_ascii_tree(graph, args.package, is_last=False)
