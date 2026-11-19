@@ -9,10 +9,9 @@ import json
 MIN_DEPTH = 1
 START_DEPTH = 0
 
-"""Блок 1: функции валидации параметров"""
-
 
 def validate_package_name(name: str) -> str:
+    """Проверяет имя пакета на допустимые символы"""
     if not name:
         raise argparse.ArgumentTypeError("Имя пакета не может быть пустым")
 
@@ -26,6 +25,7 @@ def validate_package_name(name: str) -> str:
 
 
 def validate_repo(value: str) -> str:
+    """Проверяет URL или локальный путь"""
     parsed = urlparse(value)
     if parsed.scheme in ("http", "https"):
         return value
@@ -33,6 +33,7 @@ def validate_repo(value: str) -> str:
 
 
 def validate_depth(value: str) -> int:
+    """Проверяет, что глубина - целое число >= 1"""
     try:
         depth = int(value)
     except ValueError:
@@ -46,10 +47,8 @@ def validate_depth(value: str) -> int:
     return depth
 
 
-"""Блок 2: функции для работы с данными"""
-
-
 def fetch_package_data(repo_url: str, package_name: str) -> dict:
+    """Скачивает JSON с данными о пакете из реестра npm"""
     url = f"{repo_url.rstrip('/')}/{package_name}"
 
     try:
@@ -65,6 +64,7 @@ def fetch_package_data(repo_url: str, package_name: str) -> dict:
 
 
 def get_direct_dependencies(package_data: dict, version: str) -> dict:
+    """Извлекает прямые зависимости для указанной версии"""
     if version == "latest":
         version = package_data.get("dist-tags", {}).get("latest")
         print(f"Выбрана последняя версия: {version}")
@@ -80,6 +80,7 @@ def get_direct_dependencies(package_data: dict, version: str) -> dict:
 
 
 def load_test_graph(file_path: str) -> dict:
+    """Загружает тестовый граф из текстового файла"""
     graph = {}
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -116,6 +117,7 @@ def get_package_dependencies(current_package, mode, test_graph, repo_url):
 
 def build_graph_bfs(package_name: str, repo_url: str,
                     mode: str, max_depth: int, filter_substring: str) -> dict:
+    """Строит граф зависимостей алгоритмом BFS"""
     graph = {}
     queue = [(package_name, START_DEPTH)]
     visited = set()
@@ -145,6 +147,7 @@ def build_graph_bfs(package_name: str, repo_url: str,
 
 
 def get_load_order(graph: dict, root_package: str) -> list:
+    """Возвращает порядок загрузки"""
     order = []
     visited = set()
     visiting = set()
@@ -171,6 +174,7 @@ def get_load_order(graph: dict, root_package: str) -> list:
 
 
 def generate_plantuml(graph: dict) -> str:
+    """Генерирует текстовое представление графа для PlantUML"""
     lines = ["@startuml", "skinparam defaultFontName Monospaced"]
     for node, dependencies in graph.items():
         if not dependencies:
@@ -185,6 +189,7 @@ def generate_plantuml(graph: dict) -> str:
 def print_ascii_tree(graph: dict, node: str,
                      prefix: str = "", is_last: bool = True,
                      visited: set = None, is_root: bool = True):
+    """Рекурсивно печатает ASCII-дерево зависимостей"""
     if visited is None:
         visited = set()
 
@@ -212,10 +217,8 @@ def print_ascii_tree(graph: dict, node: str,
                          visited, is_root=False)
 
 
-"""Блок 3: настройка argparse"""
-
-
 def parse_args(argv):
+    """Настраивает и парсит аргументы коммандной строки"""
     parser = argparse.ArgumentParser(
         description="Визуализатор графа зависимостей для npm-пакетов.",
         formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -251,10 +254,8 @@ def parse_args(argv):
     return parser.parse_args(argv)
 
 
-"""Блок 4: Главная функция программы"""
-
-
 def main(argv=None):
+    """Главная функция программы"""
     if argv is None:
         argv = sys.argv[1:]
     args = parse_args(argv)
