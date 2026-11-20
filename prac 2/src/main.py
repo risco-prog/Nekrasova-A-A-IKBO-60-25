@@ -8,6 +8,7 @@ import json
 
 MIN_DEPTH = 1
 START_DEPTH = 0
+MIN_LENGTH = 2
 
 
 def validate_package_name(name: str) -> str:
@@ -90,7 +91,7 @@ def load_test_graph(file_path: str) -> dict:
                     continue
 
                 parts = line.split(':')
-                if len(parts) != 2:
+                if len(parts) != MIN_LENGTH:
                     continue
 
                 node = parts[0].strip()
